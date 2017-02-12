@@ -20,13 +20,15 @@ object Session {
 
   case class Register(name: String, email: String, addr: String) extends BeginMsg
 
-  case class Login(name: String, sender: ActorRef) extends BeginMsg
+  case class Login(name: String) extends BeginMsg
 
   case class Logout(sessionId: String) extends SessionMsg
 
   case class ToCar(sessionId: String, product: String, cant: Int) extends SessionMsg
 
   case class Shop(sessionId: String) extends SessionMsg
+
+  case object RegisterOk extends AnswerMsg
 
   case class SessionId(sessionId: String) extends AnswerMsg
 
@@ -64,6 +66,7 @@ class Session extends Actor {
       println(s"Register: ${x.name}")
 
       usersData(x.name) = x
+      sender() ! RegisterOk
 
     case x: Login =>
       println(s"Login: ${x.name}")
@@ -73,9 +76,9 @@ class Session extends Actor {
 
         if (!cars.contains(sessionId)) cars(sessionId) = Map[String, Int]()
 
-        x.sender ! sessionId
+        sender() ! SessionId(sessionId)
       }
-      else x.sender ! Error(s"Not registered user: ${x.name}")
+      else sender() ! Error(s"Not registered user: ${x.name}")
 
     case x: Logout =>
       println(s"Logout: ${x.sessionId}")

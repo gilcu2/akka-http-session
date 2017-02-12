@@ -9,12 +9,12 @@ import akka.actor.{Actor, ActorRef, Props}
 object App {
   def props(sessionRef: ActorRef): Props = Props(classOf[App], sessionRef)
 
-  case class Msg(msg: BeginMsg, sender: ActorRef)
+  case class AppMsg(msg: BeginMsg, sender: ActorRef)
 }
 
 class App(val sessionActor: ActorRef) extends Actor {
 
-  import App.Msg
+  import App.AppMsg
   import Session.Error
 
   def receive = {
@@ -24,7 +24,7 @@ class App(val sessionActor: ActorRef) extends Actor {
 
       val worker = context.actorOf(Worker.props(sessionActor))
 
-      worker ! Msg(x, sender())
+      worker ! AppMsg(x, sender())
 
     case _ => sender() ! Error("Dont supported msg in App")
 

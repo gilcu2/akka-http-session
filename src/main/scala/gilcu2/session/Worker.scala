@@ -18,22 +18,36 @@ object Worker {
 
   case class TimeOut()
 
+  case class WorkerMsg(msg: AnswerMsg, ref: ActorRef)
+
 }
 
 
 class Worker(val sessionRef: ActorRef) extends Actor {
 
-  import App.Msg
-  import Session.Error
+  import App.AppMsg
+  import Worker.WorkerMsg
+  import Session.{Error, Login, Logout}
   import context.dispatcher
 
   def receive = {
-    case x: Msg =>
+    case x: AppMsg =>
       val result = sessionRef.ask(x.msg)(5 seconds)
       result.onComplete {
-        case Success(value) => x.sender ! value
+        case Success(value) => x.sender ! WorkerMsg(x.asInstanceOf[AnswerMsg], self)
         case Failure(e) => x.sender ! Error(e.toString)
       }
+
+    case x: Login =>
+      val result = sessionRef.ask(x)(5 seconds)
+      result.onComplete {
+        case Success(value) => sender() ! value
+        case Failure(e) => sender() ! Error(e.toString)
+      }
+
+    case x: Logout =>
+      sessionRef ! x
+      context.stop(self)
 
     case x: SessionMsg =>
       val result = sessionRef.ask(x)(5 seconds)
