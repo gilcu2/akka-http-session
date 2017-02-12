@@ -4,38 +4,31 @@ package gilcu2.session
   * Created by gilcu2 on 2/10/17.
   */
 
-import akka.actor.Actor
+import akka.actor.{Actor, ActorRef, Props}
 
 object App {
+  def props(sessionRef: ActorRef): Props = Props(classOf[App], sessionRef)
 
-  case class Login(user: String)
-
-  case class Logout(sessionID: Long)
-
-  case class ToCar(sessionID: Long, item: String, quantity: Int)
-
-  case class Buy(sessionID: Long)
-
+  case class Msg(msg: BeginMsg, sender: ActorRef)
 }
 
-class App extends Actor {
+class App(val sessionActor: ActorRef) extends Actor {
 
-  import App._
+  import App.Msg
+  import Session.Error
 
   def receive = {
 
-    case x: Login =>
-      println(s"App Login: ${x.user}")
-      sender() ! true
+    case x: BeginMsg =>
+      println(s"App  Msg: ${x}")
 
-    case x: Logout =>
-      println(s"App Logout: ${x.sessionID}")
+      val worker = context.actorOf(Worker.props(sessionActor))
 
-    case x: ToCar =>
-      println(s"App ToCar: ${x}")
+      worker ! Msg(x, sender())
 
-    case x: Buy =>
-      println(s"App Buy: ${x.sessionID}")
+    case _ => sender() ! Error("Dont supported msg in App")
+
+
   }
 }
 

@@ -4,14 +4,37 @@ package gilcu2.session
   * Created by gilcu2 on 2/10/17.
   */
 
-import akka.actor.Actor
+import akka.actor.{Actor, ActorRef, Props}
 
+// To return error msgs
+
+trait BeginMsg
+
+trait SessionMsg
+
+trait AnswerMsg
 
 object Session {
 
-  case class Login(user: String, sender: Actor)
+  def props: Props = Props(classOf[Session])
 
-  case class Logout(sessionID: String)
+  case class Register(name: String, email: String, addr: String) extends BeginMsg
+
+  case class Login(name: String, sender: ActorRef) extends BeginMsg
+
+  case class Logout(sessionId: String) extends SessionMsg
+
+  case class ToCar(sessionId: String, product: String, cant: Int) extends SessionMsg
+
+  case class Shop(sessionId: String) extends SessionMsg
+
+  case class SessionId(sessionId: String) extends AnswerMsg
+
+  case class Error(desc: String) extends AnswerMsg
+
+  case class CarVolumen(quantity: Int) extends AnswerMsg
+
+  case class CarShopped(quantity: Int) extends AnswerMsg
 
 }
 
@@ -20,14 +43,15 @@ class Session extends Actor {
   import Session._
   import scala.collection.mutable.Map
 
-
-  val sessions = Map[String, String]()
-  // user->digest
+  val usersData = Map[String, Register]()
   val cars = Map[String, Map[String, Int]]() //digest->car
+  val carsVolumen = Map[String, Int]()
+
+  // Suppose md5 s unique relation
 
   def md5(s: String): String = {
     import java.security.MessageDigest
-    MessageDigest.getInstance("MD5").digest(s.getBytes).map(0xFF & _).map {
+    MessageDigest.getInstance("MD5").digest((s + "secret").getBytes).map(0xFF & _).map {
       "%02x".format(_)
     }.foldLeft("") {
       _ + _
@@ -36,19 +60,46 @@ class Session extends Actor {
 
   def receive = {
 
+    case x: Register =>
+      println(s"Register: ${x.name}")
+
+      usersData(x.name) = x
+
     case x: Login =>
-      println(s"Login: ${x.user}")
+      println(s"Login: ${x.name}")
 
-      val digest = md5(x.user)
-      if (!sessions.contains(digest)) {
-        s
+      if (usersData.contains(x.name)) {
+        val sessionId = md5(x.name)
+
+        if (!cars.contains(sessionId)) cars(sessionId) = Map[String, Int]()
+
+        x.sender ! sessionId
       }
-
-      sender() ! true
+      else x.sender ! Error(s"Not registered user: ${x.name}")
 
     case x: Logout =>
-      println(s"Logout: ${x.sessionID}")
+      println(s"Logout: ${x.sessionId}")
 
+      cars.remove(x.sessionId)
 
+    case x: ToCar =>
+      if (cars.contains(x.sessionId)) {
+        val car = cars(x.sessionId)
+        car(x.product) = car.getOrElse(x.product, 0) + x.cant
+        carsVolumen(x.sessionId) = carsVolumen.getOrElse(x.sessionId, 0) + x.cant
+        sender() ! CarVolumen(carsVolumen(x.sessionId))
+      }
+      else sender() ! Error(s"Not valid session: ${x.sessionId}")
+
+    case x: Shop =>
+      if (cars.contains(x.sessionId)) {
+        val n = carsVolumen(x.sessionId)
+        carsVolumen(x.sessionId) = 0
+        cars(x.sessionId) = Map[String, Int]()
+        sender() ! CarShopped(n)
+      }
+      else sender() ! Error(s"Not valid session: ${x.sessionId}")
+
+    case _ => sender() ! Error("Dont supported msg in Session")
   }
 }
