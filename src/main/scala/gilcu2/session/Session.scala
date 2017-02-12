@@ -8,35 +8,33 @@ import akka.actor.{Actor, ActorRef, Props}
 
 // To return error msgs
 
-trait BeginMsg
+trait InMsg
 
-trait SessionMsg
-
-trait AnswerMsg
+trait OutMsg
 
 object Session {
 
   def props: Props = Props(classOf[Session])
 
-  case class Register(name: String, email: String, addr: String) extends BeginMsg
+  case class Register(name: String, email: String, addr: String) extends InMsg
 
-  case class Login(name: String) extends BeginMsg
+  case class Login(name: String) extends InMsg
 
-  case class Logout(sessionId: String) extends SessionMsg
+  case class Logout(sessionId: String) extends InMsg
 
-  case class ToCar(sessionId: String, product: String, cant: Int) extends SessionMsg
+  case class ToCar(sessionId: String, product: String, cant: Int) extends InMsg
 
-  case class Shop(sessionId: String) extends SessionMsg
+  case class Shop(sessionId: String) extends InMsg
 
-  case object RegisterOk extends AnswerMsg
+  case class RegisterOk() extends OutMsg
 
-  case class SessionId(sessionId: String) extends AnswerMsg
+  case class SessionId(sessionId: String) extends OutMsg
 
-  case class Error(desc: String) extends AnswerMsg
+  case class Error(desc: String) extends OutMsg
 
-  case class CarVolumen(quantity: Int) extends AnswerMsg
+  case class CarVolumen(quantity: Int) extends OutMsg
 
-  case class CarShopped(quantity: Int) extends AnswerMsg
+  case class CarShopped(quantity: Int) extends OutMsg
 
 }
 
@@ -66,7 +64,7 @@ class Session extends Actor {
       println(s"Register: ${x.name}")
 
       usersData(x.name) = x
-      sender() ! RegisterOk
+      sender() ! RegisterOk()
 
     case x: Login =>
       println(s"Login: ${x.name}")

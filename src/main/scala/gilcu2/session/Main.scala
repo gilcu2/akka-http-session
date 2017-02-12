@@ -5,7 +5,6 @@ import akka.actor.{ActorRef, ActorSystem}
 import scala.concurrent.Await
 import akka.pattern.ask
 import akka.util.Timeout
-import gilcu2.session.Worker.WorkerMsg
 
 import scala.concurrent.duration._
 
@@ -14,33 +13,42 @@ import scala.concurrent.duration._
   */
 object Main {
 
-  def createActors: ActorRef = {
+  def createActors: (ActorSystem, ActorRef) = {
     val system = ActorSystem()
-    val session = system.actorOf(Session.props)
-    val app = system.actorOf(App.props(session))
-    app
+    val session = system.actorOf(Session.props, "Session")
+    val app = system.actorOf(App.props(session), "App")
+    (system, app)
   }
 
   def main(args: Array[String]): Unit = {
     import Session._
     import App._
 
-    val app = createActors
+    val (system, app) = createActors
     implicit val timeout = Timeout(5 seconds)
 
-    val register = Register("john", "john@gmail.com", "new york")
-    val registerF = app.ask(register)
-    val registerR = Await.result(registerF, timeout.duration).asInstanceOf[WorkerMsg]
-    val worker = registerR.ref
+    try {
 
-    val loginF = worker.ask(Login(register.name))
-    val loginR = Await.result(loginF, timeout.duration).asInstanceOf[WorkerMsg]
-    val sessionId = loginR.msg.asInstanceOf[SessionId].sessionId
+      val workerF = app.ask(GetWorker)
+      val worker = Await.result(workerF, timeout.duration).asInstanceOf[ReturnWorker].worker
 
-    val tocarF = worker.ask(ToCar(sessionId, "guitar", 2))
-    val tocarR = Await.result(loginF, timeout.duration).asInstanceOf[CarVolumen]
+      val register = Register("john", "john@gmail.com", "new york")
+      val registerF = worker.ask(register)
+      val registerR = Await.result(registerF, timeout.duration).asInstanceOf[RegisterOk]
 
-    println(s"You have ${tocarR.quantity} in car")
+      val loginF = worker.ask(Login(register.name))
+      val loginR = Await.result(loginF, timeout.duration).asInstanceOf[SessionId]
+      val sessionId = loginR.sessionId
+
+      val tocarF = worker.ask(ToCar(sessionId, "guitar", 2))
+      val tocarR = Await.result(tocarF, timeout.duration).asInstanceOf[CarVolumen]
+
+      println(s"You have ${tocarR.quantity} in car")
+    }
+    finally {
+      system.terminate()
+    }
+
 
 
   }
