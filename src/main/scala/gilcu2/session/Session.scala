@@ -22,11 +22,11 @@ object Session {
 
   case class Logout(sessionId: String) extends InMsg
 
-  case class ToCar(sessionId: String, product: String, cant: Int) extends InMsg
+  case class ToCar(sessionId: String, product: String, quant: Int) extends InMsg
 
   case class Shop(sessionId: String) extends InMsg
 
-  case class RegisterOk() extends OutMsg
+  case class RegisterOk(name: String) extends OutMsg
 
   case class SessionId(sessionId: String) extends OutMsg
 
@@ -64,7 +64,7 @@ class Session extends Actor {
       println(s"Register: ${x.name}")
 
       usersData(x.name) = x
-      sender() ! RegisterOk()
+      sender() ! RegisterOk(x.name)
 
     case x: Login =>
       println(s"Login: ${x.name}")
@@ -86,8 +86,8 @@ class Session extends Actor {
     case x: ToCar =>
       if (cars.contains(x.sessionId)) {
         val car = cars(x.sessionId)
-        car(x.product) = car.getOrElse(x.product, 0) + x.cant
-        carsVolumen(x.sessionId) = carsVolumen.getOrElse(x.sessionId, 0) + x.cant
+        car(x.product) = car.getOrElse(x.product, 0) + x.quant
+        carsVolumen(x.sessionId) = carsVolumen.getOrElse(x.sessionId, 0) + x.quant
         sender() ! CarVolumen(carsVolumen(x.sessionId))
       }
       else sender() ! Error(s"Not valid session: ${x.sessionId}")
