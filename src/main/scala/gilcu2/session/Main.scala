@@ -15,7 +15,8 @@ object Main {
 
   def createActors: (ActorSystem, ActorRef) = {
     val system = ActorSystem()
-    val session = system.actorOf(Session.props, "Session")
+    val sessionTimeout = new org.joda.time.Duration(1.hour.toMillis)
+    val session = system.actorOf(Session.props(sessionTimeout), "Session")
     val app = system.actorOf(App.props(session), "App")
     (system, app)
   }

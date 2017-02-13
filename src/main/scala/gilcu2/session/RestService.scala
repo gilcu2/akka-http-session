@@ -6,7 +6,7 @@ package gilcu2.session
 
 import java.util.concurrent.ConcurrentLinkedDeque
 
-import akka.actor.ActorSystem
+import akka.actor.{ActorRef, ActorSystem}
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
 import akka.http.scaladsl.server.Directives._
 import akka.stream.ActorMaterializer
@@ -18,6 +18,7 @@ import scala.collection.JavaConverters._
 import scala.concurrent.Await
 import akka.pattern.ask
 import akka.util.Timeout
+
 import scala.concurrent.duration._
 import spray.json._
 import DefaultJsonProtocol._
@@ -26,8 +27,8 @@ import DefaultJsonProtocol._
 trait RestService {
   implicit val system: ActorSystem
   implicit val materializer: ActorMaterializer
+  implicit val session: ActorRef
 
-  val session = system.actorOf(Session.props, "Session")
   implicit val timeout = Timeout(5 seconds)
 
   import ServiceJsonProtoocol._

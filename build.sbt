@@ -14,6 +14,9 @@ libraryDependencies ++= {
     "com.typesafe.akka" %% "akka-stream" % akkaV,
     "com.typesafe.akka" %% "akka-http-experimental" % akkaV,
     "com.typesafe.akka" %% "akka-http-spray-json-experimental" % akkaV,
+    "com.github.nscala-time" %% "nscala-time" % "2.16.0",
+
+
     "com.typesafe.akka" %% "akka-http-testkit" % akkaV,
     "org.scalatest" %% "scalatest" % scalaTestV % "test"
   )

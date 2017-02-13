@@ -4,7 +4,8 @@ package gilcu2.session
   * Created by gilcu2 on 2/10/17.
   */
 
-import akka.actor.{Actor, ActorRef, Props}
+import akka.actor.{Actor, ActorRef, Props, ReceiveTimeout}
+import com.github.nscala_time.time.Imports._
 
 // To return error msgs
 
@@ -14,7 +15,7 @@ trait OutMsg
 
 object Session {
 
-  def props: Props = Props(classOf[Session])
+  def props(timeout: Duration = 1.hour): Props = Props(classOf[Session], timeout)
 
   case class Register(name: String, email: String, addr: String) extends InMsg
 
@@ -38,7 +39,7 @@ object Session {
 
 }
 
-class Session extends Actor {
+class Session(val timeout: Duration = 1.hour) extends Actor {
 
   import Session._
   import scala.collection.mutable.Map
@@ -46,6 +47,9 @@ class Session extends Actor {
   val usersData = Map[String, Register]()
   val cars = Map[String, Map[String, Int]]() //digest->car
   val carsVolumen = Map[String, Int]()
+  val lastConn = Map[String, DateTime]()
+
+  context.setReceiveTimeout(scala.concurrent.duration.Duration(timeout.millis, scala.concurrent.duration.MILLISECONDS))
 
   // Suppose md5 s unique relation
 
@@ -56,6 +60,12 @@ class Session extends Actor {
     }.foldLeft("") {
       _ + _
     }
+  }
+
+  def cleanSession(id: String): Unit = {
+    cars.remove(id)
+    carsVolumen.remove(id)
+    lastConn.remove(id)
   }
 
   def receive = {
@@ -74,6 +84,7 @@ class Session extends Actor {
 
         if (!cars.contains(sessionId)) cars(sessionId) = Map[String, Int]()
 
+        lastConn(sessionId) = DateTime.now
         sender() ! SessionId(sessionId)
       }
       else sender() ! Error(s"Not registered user: ${x.name}")
@@ -81,13 +92,14 @@ class Session extends Actor {
     case x: Logout =>
       println(s"Logout: ${x.sessionId}")
 
-      cars.remove(x.sessionId)
+      cleanSession(x.sessionId)
 
     case x: ToCar =>
       if (cars.contains(x.sessionId)) {
         val car = cars(x.sessionId)
         car(x.product) = car.getOrElse(x.product, 0) + x.quant
         carsVolumen(x.sessionId) = carsVolumen.getOrElse(x.sessionId, 0) + x.quant
+        lastConn(x.sessionId) = DateTime.now
         sender() ! CarVolumen(carsVolumen(x.sessionId))
       }
       else sender() ! Error(s"Not valid session: ${x.sessionId}")
@@ -97,9 +109,15 @@ class Session extends Actor {
         val n = carsVolumen(x.sessionId)
         carsVolumen(x.sessionId) = 0
         cars(x.sessionId) = Map[String, Int]()
+        lastConn(x.sessionId) = DateTime.now
         sender() ! CarShopped(n)
       }
       else sender() ! Error(s"Not valid session: ${x.sessionId}")
+
+    case ReceiveTimeout =>
+      val time4out = DateTime.now - timeout
+      val sessionsOut = lastConn.filter(_._2 < time4out).map(_._1)
+      sessionsOut.foreach(cleanSession(_))
 
     case _ => sender() ! Error("Dont supported msg in Session")
   }
